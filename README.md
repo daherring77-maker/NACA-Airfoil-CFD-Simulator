@@ -4,7 +4,7 @@ An interactive, parameter-driven graphical user interface for 2D aerodynamic sim
 
 This project eliminates the need to manually write and edit complex SU2 configuration (`.cfg`) files. Instead, users can define geometry, physics, and boundary conditions through an intuitive web UI, and the application dynamically generates the mesh and config files on the fly.
 
-![Flap Mesh Example](images/2026-07-29_101856.png") Part of Streamlit UI showing quick view of simulation results
+![Streamlit Simulation](images/2026-07-29_101856.png") Part of Streamlit UI showing quick view of simulation results
 ![Flap Mesh Example](images/VELFLAP15AOA5.png) Flap deflection 15 and AOA 5<!-- Add your mesh image here -->
 
 ## 🌟 Key Features
