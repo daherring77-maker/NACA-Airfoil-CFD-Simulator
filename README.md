@@ -46,7 +46,7 @@ Comparison of $C_L$ vs AOA demonstrating the effect of camber and thickness acro
 * **NACA 2412** (Cambered)
 * **NACA 6412** (Highly Cambered)
 
-*(Insert your CL vs AOA airfoil comparison plot here)*
+![Mesh Types](images/airfoil_types_aoa.png) Comparison Using Different Airfoil Profiles
 
 ### 3. Multi-Element Flap Simulation
 Successfully simulated a high-lift configuration using the NLR 7301 main airfoil with a trailing edge flap. 
