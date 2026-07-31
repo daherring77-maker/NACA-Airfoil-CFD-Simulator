@@ -57,9 +57,10 @@ Successfully simulated a high-lift configuration using the NLR 7301 main airfoil
 Mostly the CFD tests were performed using the Spalart–Allmaras turbulence model
 * This is well demonstrated below showing the shock wave produced at Mach 0.8 for NACA0012
 
-![Shock_Wave](images/) Shock Wave at Mach 0.8
+![Shock_Wave](images/MACH08NACA0012AOA5.png) Shock Wave at Mach 0.8
 
-### 5. A FAQ section is included which beginners may find useful when working with SU2 for the first time
+### 5. FAQ section 
+Incorporated as a Streamlit page which beginners may find useful when working with SU2 for the first time
 
 ## ⚠️ Known Issues
 
