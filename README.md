@@ -52,6 +52,14 @@ Comparison of $C_L$ vs AOA demonstrating the effect of camber and thickness acro
 Successfully simulated a high-lift configuration using the NLR 7301 main airfoil with a trailing edge flap. 
 * **Setup:** 5° AOA, 15° Flap Deflection.
 * **Result:** Massive increase in lift coefficient ($C_L \approx 1.9$), demonstrating the tool's capability to handle complex, multi-body geometries and distinct boundary markers.
+ 
+### 4. Testing using the SA Solver for Boundary Layer
+Mostly the CFD tests were performed using the Spalart–Allmaras turbulence model
+* This is well demonstrated below showing the shock wave produced at Mach 0.8 for NACA0012
+
+![Shock_Wave](images/) Shock Wave at Mach 0.8
+
+### 5. A FAQ section is included which beginners may find useful when working with SU2 for the first time
 
 ## ⚠️ Known Issues
 
