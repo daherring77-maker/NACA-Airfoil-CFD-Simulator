@@ -37,7 +37,7 @@ Comparison of $C_L$ vs AOA for a NACA 0012 airfoil using three different farfiel
 * **Circle Mesh**
 * **Box Mesh**
 * **C-Type Mesh**
-NB I have changed the code for C-Type and will be uploading a new comparison plot
+
 ![Mesh Types](images/MeshTypesNACA0012.png) Comparison Using Different Mesh Types
 
 ### 2. Airfoil Profile Comparison
