@@ -38,7 +38,7 @@ Comparison of $C_L$ vs AOA for a NACA 0012 airfoil using three different farfiel
 * **Box Mesh**
 * **C-Type Mesh**
 
-![Mesh Types](images/MeshTypesNACA0012.png) Comparison Using Different Mesh Types
+![Mesh Types](images/MeshTypes_NACA0012.png) Comparison Using Different Mesh Types
 
 ### 2. Airfoil Profile Comparison
 Comparison of $C_L$ vs AOA demonstrating the effect of camber and thickness across different NACA 4-digit profiles:
