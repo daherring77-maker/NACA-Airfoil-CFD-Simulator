@@ -62,7 +62,7 @@ Mostly the CFD tests were performed using the Spalart–Allmaras turbulence mode
 ### 5. FAQ section 
 Incorporated as a Streamlit page which beginners may find useful when working with SU2 for the first time
 
-## 6.Detailed Mesh Characteristics
+## 6. Detailed Mesh Characteristics
 🔵 Circle Farfield (Unstructured)
 Geometry: Circular outer boundary with triangular elements throughout.
 ✅ Use When:
