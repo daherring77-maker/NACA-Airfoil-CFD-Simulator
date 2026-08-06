@@ -62,6 +62,80 @@ Mostly the CFD tests were performed using the Spalart–Allmaras turbulence mode
 ### 5. FAQ section 
 Incorporated as a Streamlit page which beginners may find useful when working with SU2 for the first time
 
+## 6.Detailed Mesh Characteristics
+🔵 Circle Farfield (Unstructured)
+Geometry: Circular outer boundary with triangular elements throughout.
+✅ Use When:
+Running inviscid (Euler) simulations
+Quick parametric studies or design space exploration
+Testing new airfoil geometries
+Memory is limited (smaller mesh size)
+❌ Avoid When:
+Running viscous (RANS) simulations requiring high accuracy
+Simulating multi-element configurations with large gaps
+Boundary layer resolution is critical
+Performance:
+⚡ Speed: Fast mesh generation, moderate solve time
+💾 Memory: Low (~10-20k elements for typical 2D airfoil)
+📉 Convergence: Moderate (residuals drop steadily but slowly)
+Typical Settings:
+
+Farfield Radius: 10-20 chords
+Elements: ~15,000 triangles
+Run Time: 2-5 minutes (inviscid), 10-15 minutes (viscous)
+
+🟦 Box Farfield (Unstructured)
+Geometry: Rectangular outer boundary with triangular elements.
+✅ Use When:
+Multi-element flap configurations (DEFLECTED FLAPS)
+Complex geometries with multiple bodies
+General-purpose viscous simulations
+You need robust convergence across varied geometries
+❌ Avoid When:
+You need the fastest possible solution time
+Running large parametric sweeps (use Circle instead)
+Farfield boundary effects are critical (Circle is more isotropic)
+Performance:
+⚡ Speed: Moderate mesh generation, moderate-slow solve time
+💾 Memory: Moderate (~20-40k elements for typical flap config)
+📉 Convergence: Good (handles complex topologies well)
+Typical Settings:
+Farfield Distance: 10-30 chords
+Elements: ~30,000 triangles (single airfoil), ~70,000 (flap)
+Run Time: 5-10 minutes (single), 15-30 minutes (flap)
+
+🏆 Recommended for: All multi-element flap simulations with deflection angles > 0°
+
+🟢 C-Type Structured Grid
+Geometry: Structured quadrilateral grid wrapping around the airfoil in a "C" pattern.
+✅ Use When:
+Single airfoil simulations (gold standard)
+Viscous (RANS) simulations requiring high accuracy
+Boundary layer resolution is critical (y+ < 1)
+You need the fastest convergence and lowest run times
+Validating against experimental data
+❌ Avoid When:
+Multi-element configurations with flap deflection (NOT SUPPORTED)
+Complex geometries with multiple bodies
+You need rapid mesh generation for many configurations
+Performance:
+⚡ Speed: Slower mesh generation, fastest solve time
+💾 Memory: Moderate (~20-30k structured quads)
+📉 Convergence: Excellent (aligned grid reduces numerical diffusion)
+Typical Settings:
+Farfield Distance: 15-25 chords
+Boundary Layers: 35-50 layers
+First Layer Height: 3e-5 to 1e-6 m (for y+ ≈ 1)
+Growth Ratio: 1.15-1.25
+Elements: ~25,000 quads
+Run Time: 3-8 minutes (viscous, single airfoil)
+
+** Recommended for:** All single airfoil viscous simulations, validation studies, and production runs
+⚠️ Critical Limitation:
+Structured meshes do not support deflected flaps. If you specify a flap deflection angle with a structured mesh, gmshairfoil2d will silently default to 0° deflection. Always use Circle or Box meshes for multi-element configurations.
+
+
+
 ## ⚠️ Known Issues
 
 * **Hybrid Meshes:** Running SU2 with hybrid meshes (mixed element types) currently presents challenges. Specifically, mapping the boundary markers correctly for SU2 in a hybrid topology has proven problematic. Currently, the tool defaults to structured/unstructured quad-dominant or tri-dominant meshes to ensure marker stability.
