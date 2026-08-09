@@ -1,12 +1,15 @@
 import streamlit as st
 import subprocess
-import pathlib
+import pathlib 
 import pyvista as pv
 import matplotlib.pyplot as plt
 import numpy as np
 import os
+from modules import su2_config_generator
 from modules.run_summary import create_run_summary
 from modules.log_file import append_to_run_log 
+#from modules.hybrid_mesh_clean import clean_hybrid_mesh_in_workspace
+#from modules.clean_hybrid_mesh import clean_su2_hybrid_mesh
 
 # --- Page Config ---
 st.set_page_config(page_title="NACA CFD Streamlit", layout="wide")
@@ -18,7 +21,7 @@ log_file = WORK_DIR / "run_log.csv"
 DEFAULT_MESH_SIZE = 0.01
 DEFAULT_EXT_MESH_SIZE = 0.2
 
-def get_su2_cfg_path(): return WORK_DIR / "inv_config.cfg"
+def get_su2_cfg_path(): return WORK_DIR / "su2_config.cfg"
 
 st.sidebar.header("🛠️ CFD Parameters")
 
@@ -53,7 +56,7 @@ with st.sidebar.expander("📐 Geometry & Mesh", expanded=True):
             
             col1, col2 = st.columns(2)
             with col1:
-                flap_angle = st.slider("Flap Deflection (°)", -15, 30, 15, 
+                flap_angle = st.slider("Flap Deflection (°)", -15, 40, 10, 5, 
                                         help="Positive values typically deflect trailing edge down.")
             with col2:
                 st.info(f"**Main Airfoil:** `NLR_7301.dat`\n**Flap:** `Flap_NLR_7301.dat`")
@@ -72,7 +75,10 @@ with st.sidebar.expander("📐 Geometry & Mesh", expanded=True):
     first_layer = None
     wake_elements = None
     height_elements = None
+    airfoil_mesh_size =None
     ext_mesh_size = None
+    growth_ratio = None
+    num_layers = None
     "---"
     
     
@@ -107,15 +113,7 @@ with st.sidebar.expander("📐 Geometry & Mesh", expanded=True):
 
         # Hardcode the exact string for the log file
         log_mesh_type = "C-Type" 
-
-        #first_layer = st.number_input(
-        #    "First Layer Height", 
-        #    min_value=0.0001, 
-        #    value=0.01, 
-        #    step=0.001, 
-        #    format="%.4f",
-        #    help="Height of the first boundary layer cell"
-        #)
+        
     # Add your wake_elements and height_elements inputs here...
         col1, col2 = st.columns(2)
         with col1:
@@ -140,21 +138,6 @@ with st.sidebar.expander("📐 Geometry & Mesh", expanded=True):
     # Hardcode the exact string for the log file
         log_mesh_type = "Hybrid"
 
-    # ==========================================
-    # LATER IN YOUR CODE (Execution & Logging)
-    # ==========================================
-
-    # 1. Write to your log file using the exact string:
-    # log_file.write(f"Mesh Topology Selected: {log_mesh_type}\n")
-
-    # 2. Build your CLI command. 
-    # Assuming gmshairfoil2d expects lowercase for the --farfield_ctype argument:
-    #cli_farfield_arg = log_mesh_type.lower() # Converts "C-type" to "c-type", "Hybrid" to "hybrid", etc.
- 
-    # Conditionally add the ext_mesh_size if it was defined (Hybrid mesh)
-    #if ext_mesh_size is not None:
-    #    cmd.extend(["--ext_mesh_size", str(ext_mesh_size)])
-        
     # --- Continue with common parameters ---
     # 1. Ask the user about the physics / boundary layer first
     physics_type = st.selectbox("Physics Model", ["Inviscid (Euler)", "Viscous (RANS/Navier-Stokes)"])
@@ -178,10 +161,6 @@ with st.sidebar.expander("📐 Geometry & Mesh", expanded=True):
             with col3:
                 num_layers = st.number_input("Number of Layers", value=35, step=5)
         
-    #use_bl = st.checkbox("Enable Boundary Layer (Viscous/RANS)", value=False)
-    #if use_bl:
-    #    st.info("ℹ️ BL is enabled by default in mesher. Omitting --no_bl flag.")
-
     # All mesh types can take airfoil_mesh_size and ext_mesh_size
     airfoil_mesh_size = st.slider(
         "Airfoil Mesh Size (m)", 
@@ -200,14 +179,12 @@ with st.sidebar.expander("📐 Geometry & Mesh", expanded=True):
         format="%.2f",
         help="Target size of the mesh in the outer region (default 0.2m)."
     )
-
             
     # At the top of your execution block, create a dynamic filename
     safe_name = airfoil_param.replace(" ", "_").lower() # e.g., "ch10sm" or "0012"
+    
     mesh_filename = f"mesh_airfoil_{safe_name}.su2"
-    # Farfield options continue as before...
-    # BL is enabled by default in mesher. Omitting --no_bl flag.")
-
+    
     # --- Group 2: Flow Physics ---
 with st.sidebar.expander("🌪️ Flow Conditions", expanded=True):
     mach = st.slider("Mach Number", 0.1, 0.8, 0.3, 0.05)
@@ -229,96 +206,13 @@ run_sim = st.sidebar.button("🚀 Generate Mesh & Run SU2", type="primary", widt
 # --- Main Area ---
 st.title("NACA Airfoil CFD Simulator")
 
-# Determine boundary conditions based on farfield shape
-if mesh_topology == "Structured (C-H Grid)":
-    # Structured meshes use a single 'farfield' marker
-    bc_definitions = "MARKER_FAR= ( farfield )"
-elif mesh_topology == "Hybrid C Grid":
-    # Tell SU2 that both markers act as the farfield
-    bc_definitions = "MARKER_FAR= ( farfield, PhysicalLine5 )"    
-elif log_mesh_type == "Circle":
-    bc_definitions = "MARKER_FAR= ( farfield )"
-else:  # Box
-    bc_definitions = "MARKER_FAR= ( inlet, outlet, wall )"
-
-# Determine Marker Heatflux conditions based on Geometry Type
-if geometry_type == "Single Airfoil":
-    mh_definitions = "MARKER_HEATFLUX= ( airfoil, 0.0 )" if use_bl else "MARKER_EULER= ( airfoil )"
-else:
-    mh_definitions = "MARKER_HEATFLUX= ( airfoil, flap )" if use_bl else "MARKER_EULER= ( airfoil, flap )"
-
-# Dynamically generate SU2 Config String
-su2_config = f"""% --- Mesh & Problem ---
-MESH_FILENAME= {mesh_filename}
-MESH_FORMAT= SU2
-SOLVER= {"RANS" if use_bl else "EULER"}
-MATH_PROBLEM= DIRECT
-KIND_TURB_MODEL= {"SA" if use_bl else "NONE"}
-
-% --- Physical Conditions ---
-MACH_NUMBER= {mach}
-AOA= {aoa}
-FREESTREAM_PRESSURE= 101325.0
-FREESTREAM_TEMPERATURE= 288.15
-GAS_CONSTANT= 287.87
-SPECIFIC_HEAT_CP= 1004.5
-
-% --- Viscous Conditions (Required for RANS) ---
-REYNOLDS_NUMBER= {reynolds}
-REYNOLDS_LENGTH= 1.0
-
-% --- Boundary Conditions ---
-{bc_definitions}
-{mh_definitions}
-MARKER_PLOTTING= ( airfoil )
-MARKER_MONITORING= ( airfoil )
-REF_ORIGIN_MOMENT_X= 0.25
-REF_ORIGIN_MOMENT_Y= 0.25
-REF_ORIGIN_MOMENT_Z= 0.25
-REF_LENGTH= 1.0
-REF_AREA= 1.0
-
-% --- Convergence Strategy ---
-CONV_FIELD= RMS_DENSITY
-CONV_RESIDUAL_MINVAL= -6
-CONV_STARTITER= 10
-
-% --- Cauchy criterion on forces (stops when CL stabilizes) ---
-CONV_CAUCHY_ELEMS= 100
-CONV_CAUCHY_EPS= 1E-4
-
-% --- Numerical stabilization ---
-CONV_NUM_METHOD_FLOW= JST
-JST_SENSOR_COEFF= ( 0.5, 0.02 )
-
-% --- Multigrid (optional but powerful) ---
-MGLEVEL= 2
-MGCYCLE= W_CYCLE
-MG_DAMP_PROLONGATION= 0.75
-
-% --- Adaptive CFL ---
-CFL_NUMBER= {cfl} 
-CFL_ADAPT= YES
-CFL_ADAPT_PARAM= ( 0.1, 2.0, 5.0, 100.0 )
-ITER= {num_iter}
-
-% --- Output ---
-OUTPUT_FILES= PARAVIEW, SURFACE_PARAVIEW_ASCII
-SCREEN_OUTPUT= (INNER_ITER, RMS_DENSITY, LIFT, DRAG)
-HISTORY_OUTPUT= INNER_ITER, RMS_DENSITY, LIFT, DRAG, MOMENT_Z
-"""
-
-with st.expander("📄 View Generated SU2 Config"):
-    st.code(su2_config, language="ini")
-
 # --- Execution Engine ---
 if run_sim:
     with st.status("Running CFD Pipeline...", expanded=True) as status:
         try:
             # 1. Generate Mesh
             status.write("⚙️ Generating mesh with gmshairfoil2d...")
-            # If use_bl is True, we pass nothing (letting the default happen).
-            # If use_bl is False, we explicitly pass "--no_bl".
+           
             # Build mesh command
             if geometry_type == "Single Airfoil": 
                 mesh_cmd = ["gmshairfoil2d", mesh_airfoil_flag, airfoil_param]
@@ -339,15 +233,12 @@ if run_sim:
 
             elif mesh_topology  == "Structured (C-H Grid)":        
                 mesh_cmd.append("--structured")
-                #mesh_cmd.extend(["--first_layer", str(first_layer)])
                 mesh_cmd.extend(["--arg_struc", f"{int(wake_elements)}x{int(height_elements)}"])
-                # Conditionally add the ext_mesh_size if it was defined (Hybrid mesh)
+                
             else:
                 mesh_topology = "Hybrid C Grid" 
                 mesh_cmd.append("--farfield_ctype")   
-                if ext_mesh_size is not None:
-                        mesh_cmd.extend(["--ext_mesh_size", str(ext_mesh_size)])
-                        
+                                        
 
             # Add common parameters
             if not use_bl:
@@ -366,14 +257,41 @@ if run_sim:
                          
             mesh_result = subprocess.run(mesh_cmd, capture_output=True, text=True, check=True, cwd=WORK_DIR)
             status.write("✅ Mesh generated successfully.")
+            full_mesh_path = os.path.join(WORK_DIR, mesh_filename)
+           
+            # After gmshairfoil2d generates the mesh:
+            #if mesh_topology == "Hybrid C Grid":
+                            #clean_hybrid_mesh_in_workspace()
+                            #clean_su2_hybrid_mesh(full_mesh_path)
+                 
 
-            # 2. Write SU2 Config
-            get_su2_cfg_path().write_text(su2_config)
+            # Generate the config
+            su2_config = su2_config_generator.generate_su2_config(
+                mesh_filename=mesh_filename,
+                use_bl=use_bl,
+                mach=mach,
+                aoa=aoa,
+                reynolds=reynolds,
+                mesh_topology=mesh_topology,
+                geometry_type=geometry_type,
+                log_mesh_type=log_mesh_type,
+                cfl=cfl,
+                num_iter=num_iter
+            )
+
+            # Write it to the workspace
+            config_path = su2_config_generator.write_config_to_workspace(
+                su2_config, 
+                WORK_DIR
+            )
+            
             status.write("💾 SU2 config file written.")
+            with st.expander("📄 View Generated SU2 Config"):
+                st.code(su2_config, language="ini")
 
             # 3. Run SU2
             status.write("🌪️ Running SU2_CFD solver...")
-            solve_cmd = ["SU2_CFD", "inv_config.cfg"]
+            solve_cmd = ["SU2_CFD", "config.cfg"]
             solve_result = subprocess.run(solve_cmd, capture_output=True, text=True, check=True, cwd=WORK_DIR)
             status.write("✅ SU2 simulation completed.")
             
