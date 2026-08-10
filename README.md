@@ -52,6 +52,8 @@ Comparison of $C_L$ vs AOA demonstrating the effect of camber and thickness acro
 Successfully simulated a high-lift configuration using the NLR 7301 main airfoil with a trailing edge flap. 
 * **Setup:** 5° AOA, 15° Flap Deflection.
 * **Result:** Massive increase in lift coefficient ($C_L \approx 1.9$), demonstrating the tool's capability to handle complex, multi-body geometries and distinct boundary markers.
+* The CL figures obtained by the simulation are reliable but the CD figures should be treated with caution.
+![Mesh Types](images/flap_deflection.png) CL and CD for Different Deflections 
  
 ### 4. Testing using the SA Solver for Boundary Layer
 Mostly the CFD tests were performed using the Spalart–Allmaras turbulence model
@@ -139,6 +141,7 @@ Structured meshes do not support deflected flaps. If you specify a flap deflecti
 ## ⚠️ Known Issues
 
 * **Hybrid Meshes:** Running SU2 with hybrid meshes (mixed element types) currently presents challenges. Specifically, mapping the boundary markers correctly for SU2 in a hybrid topology has proven problematic. Currently, the tool defaults to structured/unstructured quad-dominant or tri-dominant meshes to ensure marker stability.
+* **Drag Coefficient for Flaps:** The SU2 solver creates negative drag for deflections which is physically impossible. The root cause is believed to be due to the poor quality triangular meshing at the hinge gap which increases as the deflection angle increases.   
 
 ## 🚀 Coming Soon
 
