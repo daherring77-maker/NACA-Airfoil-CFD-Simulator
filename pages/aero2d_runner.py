@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 from modules import su2_config_generator
+from modules import mesh_generator 
 from modules.run_summary import create_run_summary
 from modules.log_file import append_to_run_log 
 #from modules.hybrid_mesh_clean import clean_hybrid_mesh_in_workspace
@@ -24,6 +25,29 @@ DEFAULT_EXT_MESH_SIZE = 0.2
 def get_su2_cfg_path(): return WORK_DIR / "su2_config.cfg"
 
 st.sidebar.header("🛠️ CFD Parameters")
+
+
+st.markdown("---")
+# 1. Initialize all possible variables to None at the top.
+# This prevents "UnboundLocalError" if the user switches topologies 
+# and a variable from a previous block is called later in the script.
+
+airfoil_param = None
+farfield_radius = None
+box_length = None
+box_height = None
+first_layer = None
+wake_elements = None
+height_elements = None
+airfoil_mesh_size =None
+ext_mesh_size = None
+growth_ratio = None
+num_layers = None
+main_airfoil_path = None
+flap_path = None
+flap_angle = None
+mesh_airfoil_flag = None
+"---"
 
 # --- Group 1: Geometry ---
 with st.sidebar.expander("📐 Geometry & Mesh", expanded=True):
@@ -64,24 +88,8 @@ with st.sidebar.expander("📐 Geometry & Mesh", expanded=True):
                            
              
   
-    # --- NEW: Mesh Topology Selection ---
-    st.markdown("---")
-    # 1. Initialize all possible variables to None at the top.
-    # This prevents "UnboundLocalError" if the user switches topologies 
-    # and a variable from a previous block is called later in the script.
-    farfield_radius = None
-    box_length = None
-    box_height = None
-    first_layer = None
-    wake_elements = None
-    height_elements = None
-    airfoil_mesh_size =None
-    ext_mesh_size = None
-    growth_ratio = None
-    num_layers = None
-    "---"
-    
-    
+    # --- Mesh Topology Selection ---
+       
     # This variable will hold the exact string you want in your log file
     log_mesh_type = None 
 
@@ -134,6 +142,24 @@ with st.sidebar.expander("📐 Geometry & Mesh", expanded=True):
             )
     elif mesh_topology == "Hybrid C Grid":
         st.info("🔀 Hybrid mesh combines structured boundary layers with an unstructured outer fill.")
+        # Add your wake_elements and height_elements inputs here...
+        col1, col2 = st.columns(2)
+        with col1:
+            wake_elements = st.number_input(
+                "Wake Elements (x)", 
+                min_value=1, 
+                value=6, 
+                step=1,
+                help="Number of elements in wake region"
+            )
+        with col2:
+            height_elements = st.number_input(
+                "Height Elements (y)", 
+                min_value=1, 
+                value=7, 
+                step=1,
+                help="Number of elements in vertical direction"
+            )
 
     # Hardcode the exact string for the log file
         log_mesh_type = "Hybrid"
@@ -214,46 +240,28 @@ if run_sim:
             status.write("⚙️ Generating mesh with gmshairfoil2d...")
            
             # Build mesh command
-            if geometry_type == "Single Airfoil": 
-                mesh_cmd = ["gmshairfoil2d", mesh_airfoil_flag, airfoil_param]
-                    
-            else:
-                #geometry_type == "Multi-Element (Flap)" 
-                mesh_cmd = ["gmshairfoil2d"]
-                mesh_cmd.extend(["--airfoil_path", str(main_airfoil_path)])
-                mesh_cmd.extend(["--flap_path", str(flap_path)])
-                mesh_cmd.extend(["--deflection", f"{int(flap_angle)}"])
-
-            if mesh_topology == "Unstructured (Circle/Box)":
-                # Add farfield parameters
-                if log_mesh_type == "Circle":
-                    mesh_cmd.extend(["--farfield", str(farfield_radius)])
-                else:  # Box
-                    mesh_cmd.extend(["--box", f"{box_length}x{box_height}"])
-
-            elif mesh_topology  == "Structured (C-H Grid)":        
-                mesh_cmd.append("--structured")
-                mesh_cmd.extend(["--arg_struc", f"{int(wake_elements)}x{int(height_elements)}"])
-                
-            else:
-                mesh_topology = "Hybrid C Grid" 
-                mesh_cmd.append("--farfield_ctype")   
-                                        
-
-            # Add common parameters
-            if not use_bl:
-                mesh_cmd.append("--no_bl")
-            else:
-                mesh_cmd.extend([
-                            "--first_layer", str(first_layer),
-                            "--ratio", str(growth_ratio),
-                            "--nb_layers", str(num_layers)
-                        ])    
-                
-            mesh_cmd.extend(["--airfoil_mesh_size", str(airfoil_mesh_size)])
-            mesh_cmd.extend(["--ext_mesh_size", str(ext_mesh_size)])
-           
-            bl_flag = [] if use_bl else ["--no_bl"]              
+            mesh_cmd = mesh_generator.build_mesh_command(
+                mesh_filename,
+                geometry_type, 
+                mesh_topology, 
+                use_bl,
+                mesh_airfoil_flag,
+                airfoil_param,
+                log_mesh_type,
+                farfield_radius,
+                box_length, 
+                box_height, 
+                wake_elements, 
+                first_layer, 
+                growth_ratio, 
+                num_layers, 
+                airfoil_mesh_size, 
+                ext_mesh_size, 
+                height_elements, 
+                main_airfoil_path, 
+                flap_path,
+                flap_angle
+            )
                          
             mesh_result = subprocess.run(mesh_cmd, capture_output=True, text=True, check=True, cwd=WORK_DIR)
             status.write("✅ Mesh generated successfully.")
@@ -263,7 +271,7 @@ if run_sim:
             #if mesh_topology == "Hybrid C Grid":
                             #clean_hybrid_mesh_in_workspace()
                             #clean_su2_hybrid_mesh(full_mesh_path)
-                 
+               
 
             # Generate the config
             su2_config = su2_config_generator.generate_su2_config(
